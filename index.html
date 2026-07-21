@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VideoShrink — Free In-Browser Video Compressor & MP4 Converter</title>
+  <meta name="description" content="Shrink MP4, MOV, and WebM video file sizes directly in your browser. Free client-side video compressor with zero watermarks, zero cloud uploads, and total privacy.">
+
+  <!-- Favicon Icon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'><rect x='2' y='4' width='20' height='16' rx='3' stroke='%2338bdf8' stroke-width='2'/><path d='M10 9l5 3-5 3V9z' fill='%2338bdf8'/></svg>">
+
+  <!-- FFmpeg.wasm WebAssembly Libraries -->
+  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+
+  <!-- GOOGLE ADSENSE MONETIZATION SCRIPT -->
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5197654798298236" crossorigin="anonymous"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; padding: 1rem; }
+    .card { background: #1e293b; padding: 2rem; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); width: 100%; max-width: 540px; text-align: center; margin-top: 2rem; }
+    .btn { background: #0284c7; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 1rem; width: 100%; margin-top: 1rem; display: block; text-decoration: none; transition: background 0.2s; }
+    .btn:hover { background: #0369a1; }
+    .btn:disabled { background: #475569; cursor: not-allowed; }
+    .file-label { display: block; padding: 2.5rem 1.5rem; border: 2px dashed #475569; border-radius: 8px; cursor: pointer; color: #94a3b8; transition: border 0.2s; }
+    .file-label:hover { border-color: #38bdf8; color: #f8fafc; }
+    input[type="file"] { display: none; }
+    .control-group { margin-top: 1.25rem; text-align: left; background: #0f172a; padding: 1rem; border-radius: 8px; border: 1px solid #334155; }
+    .control-group label { display: block; font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.4rem; font-weight: 600; }
+    .control-group select { width: 100%; padding: 0.6rem; border-radius: 4px; border: 1px solid #475569; background: #1e293b; color: #f8fafc; font-size: 0.9rem; }
+    .progress-bar-container { background: #0f172a; border-radius: 6px; height: 14px; width: 100%; margin-top: 1rem; overflow: hidden; display: none; }
+    .progress-bar { background: #38bdf8; height: 100%; width: 0%; transition: width 0.2s; }
+    .status { margin-top: 0.75rem; font-size: 0.85rem; color: #94a3b8; }
+    .ad-zone { margin-top: 1.5rem; min-height: 90px; background: #0f172a; border-radius: 6px; border: 1px dashed #334155; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; color: #64748b; }
+    video { width: 100%; border-radius: 8px; margin-top: 1rem; display: none; }
+
+    /* Content & Footer styling for AdSense Approval */
+    .seo-section { max-width: 650px; margin: 3rem auto 1.5rem; padding: 0 1rem; color: #94a3b8; font-size: 0.95rem; line-height: 1.6; text-align: left; }
+    .seo-section h2 { color: #f8fafc; font-size: 1.25rem; border-bottom: 1px solid #334155; padding-bottom: 0.5rem; }
+    .seo-section h3 { color: #e2e8f0; font-size: 1.05rem; margin-top: 1.5rem; }
+    .seo-section ul, .seo-section ol { padding-left: 1.2rem; }
+    footer { text-align: center; padding: 2rem 1rem; color: #64748b; font-size: 0.85rem; width: 100%; border-top: 1px solid #1e293b; margin-top: auto; }
+    footer a { color: #38bdf8; text-decoration: none; cursor: pointer; margin: 0 0.5rem; }
+
+    /* Modal Styling for Privacy / Terms */
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); justify-content: center; align-items: center; padding: 1rem; z-index: 100; }
+    .modal-content { background: #1e293b; padding: 2rem; border-radius: 12px; max-width: 600px; max-height: 80vh; overflow-y: auto; color: #94a3b8; font-size: 0.9rem; text-align: left; }
+    .modal-content h3 { color: #f8fafc; margin-top: 0; }
+    .close-btn { background: #475569; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; float: right; }
+  </style>
+</head>
+<body>
+
+<!-- MAIN TOOL CARD -->
+<div class="card">
+  <!-- Brand Header -->
+  <div style="display: flex; align-items: center; justify-content: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="4" width="20" height="16" rx="3" stroke="#38bdf8" stroke-width="2.5"/>
+      <path d="M10 9l5 3-5 3V9z" fill="#38bdf8"/>
+    </svg>
+    <h1 style="margin: 0; color: #38bdf8; font-size: 1.8rem; font-weight: 800; letter-spacing: -0.5px;">VideoShrink</h1>
+  </div>
+  <p style="color: #94a3b8; font-size: 0.9rem; margin-top: 0;">In-browser video compression & MP4 converter. No watermark.</p>
+
+  <!-- File Input -->
+  <label for="videoInput" class="file-label" id="fileLabel">🎬 Drop or click to select MP4, MOV, or WebM video</label>
+  <input type="file" id="videoInput" accept="video/*">
+
+  <!-- Video Controls -->
+  <div id="controlsSection" style="display:none;">
+    <div class="control-group">
+      <label for="presetSelect">Compression Preset:</label>
+      <select id="presetSelect">
+        <option value="discord">Discord Preset (Shrink for < 25MB)</option>
+        <option value="email">Email Preset (Shrink for < 10MB)</option>
+        <option value="medium" selected>Balanced Compression (720p HD)</option>
+        <option value="aggressive">Maximum Compression (480p Small Size)</option>
+      </select>
+    </div>
+
+    <button class="btn" id="compressBtn" onclick="processVideo()">⚡ Compress Video Now</button>
+  </div>
+
+  <!-- Progress & Output -->
+  <div class="progress-bar-container" id="progressContainer">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+  <div class="status" id="statusText"></div>
+
+  <!-- Video Preview & Download Link -->
+  <video id="videoPreview" controls></video>
+  <div id="downloadContainer" style="margin-top: 1rem;"></div>
+
+  <!-- Auto Ads Area -->
+  <div class="ad-zone" id="adZone">
+    <span>SPONSORED CONTENT</span>
+  </div>
+</div>
+
+<!-- SEO CONTENT SECTION -->
+<section class="seo-section">
+  <h2>Fast, Private, Client-Side Video Compressor</h2>
+  <p>VideoShrink is an in-browser video compression tool built on WebAssembly (FFmpeg.wasm). Reduce the file size of heavy MP4, MOV, and WebM videos directly inside your browser without uploading private clips to external cloud servers.</p>
+
+  <h3>Why Use VideoShrink?</h3>
+  <ul>
+    <li><strong>100% Client-Side Privacy:</strong> Videos process locally on your device CPU. Your media files are never uploaded or stored anywhere.</li>
+    <li><strong>Zero Watermarks & No File Caps:</strong> Compress full-length recordings, game clips, and screen captures with zero watermarks added.</li>
+    <li><strong>Optimized Presets:</strong> Quickly shrink videos to fit strict platform limits like Discord (25MB) or email attachments (10MB).</li>
+  </ul>
+
+  <h3>How to Shrink Video File Size</h3>
+  <ol>
+    <li>Select a video file from your computer or smartphone.</li>
+    <li>Choose your preferred compression preset (Discord, Email, 720p, or 480p).</li>
+    <li>Click "Compress Video Now" and wait for the browser engine to complete processing.</li>
+    <li>Preview and download your compressed MP4 video!</li>
+  </ol>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p>&copy; 2026 VideoShrink — Private Client-Side Video Utilities.</p>
+  <p>
+    <a onclick="openModal('privacyModal')">Privacy Policy</a> | 
+    <a onclick="openModal('termsModal')">Terms of Service</a>
+  </p>
+</footer>
+
+<!-- PRIVACY POLICY MODAL -->
+<div class="modal" id="privacyModal">
+  <div class="modal-content">
+    <button class="close-btn" onclick="closeModal('privacyModal')">Close</button>
+    <h3>Privacy Policy</h3>
+    <p>At VideoShrink, we prioritize your data privacy. VideoShrink operates using WebAssembly technology directly inside your web browser.</p>
+    <p><strong>File Data:</strong> We do not store, upload, inspect, or retain any video files on external servers. All processing executes locally on your device.</p>
+    <p><strong>Cookies & Advertising:</strong> We use Google AdSense to serve advertisements. Google uses cookies to serve ads based on prior visits. You can opt out of personalized advertising by visiting Google's Ad Settings.</p>
+  </div>
+</div>
+
+<!-- TERMS OF SERVICE MODAL -->
+<div class="modal" id="termsModal">
+  <div class="modal-content">
+    <button class="close-btn" onclick="closeModal('termsModal')">Close</button>
+    <h3>Terms of Service</h3>
+    <p>By using VideoShrink, you agree to these Terms of Service.</p>
+    <p><strong>Usage Rules:</strong> You agree to use VideoShrink only for video files you have legal rights to modify. VideoShrink is provided on an "AS IS" basis without warranties regarding speed or browser memory availability.</p>
+  </div>
+</div>
+
+<script>
+  const { createFFmpeg, fetchFile } = FFmpeg;
+  let ffmpeg = null;
+  let selectedFile = null;
+
+  document.getElementById('videoInput').addEventListener('change', (e) => {
+    selectedFile = e.target.files[0];
+    if (selectedFile) {
+      document.getElementById('fileLabel').innerText = `Selected: ${selectedFile.name} (${(selectedFile.size / 1024 / 1024).toFixed(1)} MB)`;
+      document.getElementById('controlsSection').style.display = 'block';
+    }
+  });
+
+  async function processVideo() {
+    if (!selectedFile) return;
+
+    const compressBtn = document.getElementById('compressBtn');
+    const statusText = document.getElementById('statusText');
+    const progressBar = document.getElementById('progressBar');
+    const progressContainer = document.getElementById('progressContainer');
+    const downloadContainer = document.getElementById('downloadContainer');
+    const videoPreview = document.getElementById('videoPreview');
+
+    compressBtn.disabled = true;
+    downloadContainer.innerHTML = '';
+    videoPreview.style.display = 'none';
+    progressContainer.style.display = 'block';
+    progressBar.style.width = '10%';
+    statusText.innerText = "Loading WebAssembly Video Engine...";
+
+    try {
+      if (!ffmpeg) {
+        ffmpeg = createFFmpeg({ log: false });
+        ffmpeg.setProgress(({ ratio }) => {
+          let percent = Math.min(Math.floor(ratio * 100), 100);
+          if (percent > 0) {
+            progressBar.style.width = percent + '%';
+            statusText.innerText = `Compressing Video... ${percent}%`;
+          }
+        });
+        await ffmpeg.load();
+      }
+
+      statusText.innerText = "Reading video memory...";
+      progressBar.style.width = '20%';
+
+      const preset = document.getElementById('presetSelect').value;
+      const inputName = `input_${Date.now()}`;
+      const outputName = `output_${Date.now()}.mp4`;
+
+      ffmpeg.FS('writeFile', inputName, await fetchFile(selectedFile));
+
+      // FFmpeg Command Arguments based on Preset
+      let ffmpegArgs = ['-i', inputName, '-vcodec', 'libx264', '-crf'];
+
+      if (preset === 'discord' || preset === 'email') {
+        ffmpegArgs.push('28', '-vf', 'scale=-2:480', '-preset', 'ultrafast');
+      } else if (preset === 'aggressive') {
+        ffmpegArgs.push('30', '-vf', 'scale=-2:480', '-preset', 'ultrafast');
+      } else {
+        // Balanced Medium
+        ffmpegArgs.push('26', '-vf', 'scale=-2:720', '-preset', 'ultrafast');
+      }
+
+      ffmpegArgs.push(outputName);
+
+      statusText.innerText = "Encoding video stream...";
+      progressBar.style.width = '35%';
+
+      await ffmpeg.run(...ffmpegArgs);
+
+      const data = ffmpeg.FS('readFile', outputName);
+
+      ffmpeg.FS('unlink', inputName);
+      ffmpeg.FS('unlink', outputName);
+
+      const blob = new Blob([data.buffer], { type: 'video/mp4' });
+      const downloadUrl = URL.createObjectURL(blob);
+
+      progressBar.style.width = '100%';
+      const outputMB = (data.buffer.byteLength / 1024 / 1024).toFixed(1);
+      const originalMB = (selectedFile.size / 1024 / 1024).toFixed(1);
+      const reduction = Math.round((1 - (data.buffer.byteLength / selectedFile.size)) * 100);
+
+      statusText.innerText = `Done! Reduced from ${originalMB}MB to ${outputMB}MB (${reduction}% smaller)`;
+
+      // Video Preview
+      videoPreview.src = downloadUrl;
+      videoPreview.style.display = 'block';
+
+      // Download Button
+      const dlBtn = document.createElement('a');
+      dlBtn.href = downloadUrl;
+      dlBtn.download = `shrunk_${selectedFile.name.split('.')[0]}.mp4`;
+      dlBtn.className = 'btn';
+      dlBtn.style.background = '#16a34a';
+      dlBtn.innerText = `💾 Download Compressed MP4 (${outputMB} MB)`;
+
+      downloadContainer.appendChild(dlBtn);
+
+    } catch (err) {
+      console.error(err);
+      statusText.innerText = "Error compressing video. File may be too large for browser RAM.";
+    } finally {
+      compressBtn.disabled = false;
+    }
+  }
+
+  function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+  function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+</script>
+
+</body>
+</html>
