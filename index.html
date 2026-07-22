@@ -9,6 +9,16 @@
   <!-- Favicon Icon -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'><rect x='2' y='4' width='20' height='16' rx='3' stroke='%2338bdf8' stroke-width='2'/><path d='M10 9l5 3-5 3V9z' fill='%2338bdf8'/></svg>">
 
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-1B7NHKM52E"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-1B7NHKM52E');
+  </script>
+
   <!-- JSON-LD STRUCTURED DATA SCHEMA FOR GOOGLE SEARCH -->
   <script type="application/ld+json">
   {
@@ -170,7 +180,13 @@
 
 <script>
   const { createFFmpeg, fetchFile } = FFmpeg;
-  let ffmpeg = null;
+  
+  // Point to single-threaded core binary to prevent SharedArrayBuffer isolation locks
+  let ffmpeg = createFFmpeg({ 
+    log: true,
+    corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+  });
+
   let selectedFile = null;
 
   document.getElementById('videoInput').addEventListener('change', (e) => {
@@ -199,23 +215,25 @@
     statusText.innerText = "Loading WebAssembly Video Engine...";
 
     try {
-      if (!ffmpeg) {
-        ffmpeg = createFFmpeg({ log: false });
-        ffmpeg.setProgress(({ ratio }) => {
-          let percent = Math.min(Math.floor(ratio * 100), 100);
-          if (percent > 0) {
-            progressBar.style.width = percent + '%';
-            statusText.innerText = `Compressing Video... ${percent}%`;
-          }
-        });
+      if (!ffmpeg.isLoaded()) {
+        statusText.innerText = "Downloading WebAssembly Core (~25MB)...";
         await ffmpeg.load();
       }
 
       statusText.innerText = "Reading video memory...";
       progressBar.style.width = '20%';
 
+      ffmpeg.setProgress(({ ratio }) => {
+        let percent = Math.min(Math.floor(ratio * 100), 100);
+        if (percent > 0) {
+          progressBar.style.width = percent + '%';
+          statusText.innerText = `Compressing Video... ${percent}%`;
+        }
+      });
+
       const preset = document.getElementById('presetSelect').value;
-      const inputName = `input_${Date.now()}`;
+      const inputExt = selectedFile.name.split('.').pop() || 'mp4';
+      const inputName = `input_${Date.now()}.${inputExt}`;
       const outputName = `output_${Date.now()}.mp4`;
 
       ffmpeg.FS('writeFile', inputName, await fetchFile(selectedFile));
@@ -269,7 +287,7 @@
       downloadContainer.appendChild(dlBtn);
 
     } catch (err) {
-      console.error(err);
+      console.error("FFmpeg Execution Error:", err);
       statusText.innerText = "Error compressing video. File may be too large for browser RAM.";
     } finally {
       compressBtn.disabled = false;
